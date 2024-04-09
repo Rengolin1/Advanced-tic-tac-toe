@@ -3,9 +3,12 @@ import sys
 import numpy as np
 import tensorflow as tf
 import time
+from typing import Any
 
 # Инициализация Pygame
 pg.init()
+pg.font.init()
+pg.mixer.init()
 
 # Размеры окна
 WIDTH, HEIGHT = 300, 300
@@ -143,6 +146,32 @@ def ai_turn_X(board):
 
     return row, col
 
+def ai_turn_O(board):
+    # Заменяем 'X', 'O' и None на числовые значения
+    input_board = [[1 if cell == 'X' else -1 if cell == 'O' else 0 for cell in row] for row in board]
+    # Преобразуем доску в формат, подходящий для модели
+    input_board = np.array(input_board)
+    input_board = input_board.reshape((1, 3, 3))
+
+    # Получаем предсказания от модели
+    predictions = model.predict(input_board)
+
+    # Получаем список доступных клеток
+    available_cells = [(i,j) for i in range(3) for j in range(3) if board[i][j] is None]
+
+    # Выбираем клетку с наибольшим предсказанием среди доступных клеток
+    if len(available_cells) > 0:
+        # Используем случайный номер из доступных клеток
+        index = np.random.choice(len(available_cells))
+        row, col = available_cells[index]
+    else:
+        row = col = 0
+
+    return row, col
+
+
+
+
 
 
 def check_draw(board):
@@ -172,50 +201,59 @@ def game_loop():
     global running
     attempt = 1
     running = True
+    f = open("log.txt", "a", encoding='utf-8')
     while running:
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 pg.quit()
                 sys.exit()
 
-        # AI для 'X'
-        row, col = ai_turn_X(board)
-        board[row][col] = 'X'
-        draw_board()
-        draw_markers()
-        winner = check_winner()
-        if winner:
-            print(f"Победитель: {winner}")
-            running = False
-        elif check_draw(board):
-            print("Ничья!")
-            running = False
+            # AI для 'O'
+            row, col = ai_turn_O(board)
+            board[row][col] = 'O'
+            draw_board()
+            draw_markers()
+            winner = check_winner()
+            if winner:
+                print(f"Победитель: {winner}", file=f)
+                print(f"Победитель: {winner}")
+                running = False
+            elif check_draw(board):
+                print("Ничья!", file=f)
+                print("Ничья!")
+                running = False
 
-        pg.display.update()
-        time.sleep(0.5)  # Задержка в 1 секунду
+            pg.display.update()
+            time.sleep(0.5)  # Задержка в 1 секунду
 
-        # AI для 'O'
-        row, col = ai_turn(board)
-        board[row][col] = 'O'
-        draw_board()
-        draw_markers()
-        winner = check_winner()
-        if winner:
-            print(f"Победитель: {winner}")
-            running = False
-        elif check_draw(board):
-            print("Ничья!")
-            running = False
+            # AI для 'X'
+            if not any(cell is None for row in board for cell in row):
+                break
+            row, col = ai_turn_X(board)
+            board[row][col] = 'X'
+            draw_board()
+            draw_markers()
+            winner = check_winner()
+            if winner:
+                print(f"Победитель: {winner}", file=f)
+                print(f"Победитель: {winner}")
+                running = False
+            elif check_draw(board):
+                print("Ничья!", file=f)
+                print("Ничья!")
+                running = False
 
-        if winner != None:
-            reset_board()
-            print("Ничья!")
+            if winner != None:
+                reset_board()
+                print("Ничья!", file=f)
+                print("Ничья!")
 
-        pg.display.update()
-        time.sleep(0.5)  # Задержка в 1 секунду
+            pg.display.update()
+            time.sleep(0.5)  # Задержка в 1 секунду
 
-    print(f"Попытка: {attempt}")
-    attempt += 1
-
+        print(f"Попытка: {attempt}", file=f)
+        print(f"Попытка: {attempt}")
+        attempt += 1
+    f.close()
 
 game_loop()
